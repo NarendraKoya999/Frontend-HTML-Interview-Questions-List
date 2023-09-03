@@ -706,6 +706,109 @@ tr>
     ```html
     <div data-product-id="12345">Product Name</div>
     ```
+
+86. **What is HTML5 Web Storage, and how does it differ from cookies?**
+    - HTML5 Web Storage (localStorage and sessionStorage) provides a way to store data locally in a user's browser. It's more secure and has a larger storage capacity compared to cookies. Cookies are sent with every HTTP request, while Web Storage is not, reducing overhead.
+
+87. **Explain the purpose of the HTML `<details>` and `<summary>` elements.**
+    - The `<details>` element defines a disclosure widget, while the `<summary>` element provides a visible heading for the widget. When clicked, it can reveal or hide additional content.
+
+    ```html
+    <details>
+      <summary>Click me</summary>
+      <p>Hidden content</p>
+    </details>
+    ```
+
+88. **What is the HTML `preload` attribute, and how does it improve website performance?**
+    - The `preload` attribute is used to hint to the browser to preload a specific resource, such as an image or a script. It can improve performance by allowing the browser to fetch critical resources earlier in the page load process.
+
+    ```html
+    <link rel="preload" href="image.jpg" as="image">
+    ```
+
+89. **Explain the concept of responsive images in HTML and how the `srcset` attribute works.**
+    - Responsive images adapt to different screen sizes and resolutions. The `srcset` attribute allows you to provide multiple image sources and specify their sizes, helping the browser choose the most appropriate image to display.
+
+    ```html
+    <img srcset="image-400.jpg 400w, image-800.jpg 800w" sizes="(max-width: 600px) 400px, 800px" src="fallback.jpg" alt="Responsive Image">
+    ```
+
+90. **What is the HTML `download` attribute, and how does it affect links and anchor elements?**
+    - The `download` attribute is used in anchor (`<a>`) elements to specify that when a link is clicked, the linked resource should be downloaded rather than navigating to it. It can be used with links to files like PDFs, images, or documents.
+
+    ```html
+    <a href="document.pdf" download>Download PDF</a>
+    ```
+
+91. **Explain the concept of "semantic HTML" and its importance in modern web development.**
+    - Semantic HTML is the practice of using HTML elements that convey meaning about the structure and content of a web page. It's important for accessibility, SEO, and readability of code.
+
+92. **What are data attributes in HTML, and how can you use them?**
+    - Data attributes are custom attributes that can be added to HTML elements to store additional data. They are prefixed with `data-`. You can access them using JavaScript and CSS.
+
+    ```html
+    <div data-product-id="12345">Product Name</div>
+    ```
+
+93. **Explain the purpose of the HTML `<iframe>` element and its use cases.**
+    - `<iframe>` is used to embed external content, such as maps, videos, or other web pages, within a web page. It allows for the inclusion of content from different sources.
+
+    ```html
+    <iframe src="https://www.example.com"></iframe>
+    ```
+
+94. **What are HTML entities, and why are they used? Provide examples.**
+    - HTML entities are special characters represented using entity names or codes. They are used to display reserved characters, such as `<` or `&`, that have special meanings in HTML.
+
+    ```html
+    &lt; represents <
+    &gt; represents >
+    &amp; represents &
+    ```
+
+95. **What is the HTML `<figure>` and `<figcaption>` elements used for?**
+    - The `<figure>` element is used to encapsulate media content, such as images or videos, along with their captions, which are provided using the `<figcaption>` element. It improves accessibility and structure.
+
+    ```html
+    <figure>
+      <img src="image.jpg" alt="A beautiful landscape">
+      <figcaption>Caption for the image</figcaption>
+    </figure>
+    ```
+
+96. **How can you create a hyperlink that sends an email when clicked?**
+    - You can create an email link using the `mailto:` scheme in the `href` attribute of an anchor (`<a>`) element.
+
+    ```html
+    <a href="mailto:contact@example.com">Send Email</a>
+    ```
+
+97. **Explain the purpose of the HTML `<time>` element and its attributes.**
+    - The `<time>` element represents a specific period in time or a range of time. It can include a `datetime` attribute for machine-readable date and time information and display the date and time using its content.
+
+    ```html
+    <time datetime="2023-09-03T10:00">September 3, 2023, 10:00 AM</time>
+    ```
+
+98. **What is the HTML `contenteditable` attribute, and how does it affect elements?**
+    - The `contenteditable` attribute can be added to HTML elements, making their content editable by users, like text editors. It's often used to create rich text editors or editable web content.
+
+    ```html
+    <div contenteditable="true">This content can be edited.</div>
+    ```
+
+99. **What is the HTML `aria-*` attribute used for, and why is it important for web accessibility?**
+    - The `aria-*` attributes are used to provide additional accessibility information to assistive technologies, such as screen readers. They help make web content more accessible to people with disabilities by describing element roles, states, and properties.
+
+100. **Explain the purpose of the HTML `<mark>` element and how it affects text presentation.**
+    - The `<mark>` element is used to highlight or mark a portion of text within a larger body of content. It doesn't change the text's meaning but visually distinguishes it, often by applying a background color.
+
+    ```html
+    <p>This is a <mark>highlighted</mark> word.</p>
+    ```
+
+Feel free to ask if you have more questions or need further clarification on any of these HTML concepts!    
 ## Additional Resources
 
 Here are some recommended resources, books, and websites where you can further enhance your HTML knowledge and keep up with the latest developments in frontend web development:
