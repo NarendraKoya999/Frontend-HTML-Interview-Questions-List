@@ -50,11 +50,11 @@ Pay special attention to **browser internals** — the most common knowledge gap
 1. Browser checks its **DNS cache**
 2. OS performs **DNS resolution** → recursive resolver → root → TLD → authoritative nameserver
 3. **TCP 3-way handshake** with the resolved server IP
-4. **TLS handshake** (for HTTPS)
+4. **TLS handshake** (for HTTPS — TLS 1.3 is the current standard)
 5. Browser sends **HTTP GET** request
 6. Server returns **HTML**
 7. Browser parses HTML, builds the **DOM**
-8. Sub-resources (CSS, JS, images) are **fetched**
+8. Sub-resources (CSS, JS, images) are **fetched** — speculatively parsed ahead if the browser's preload scanner finds them
 9. **CSSOM** is built from CSS
 10. **Render Tree** is constructed (DOM + CSSOM)
 11. **Layout** — positions and sizes calculated
@@ -90,7 +90,7 @@ The **DOM (Document Object Model)** is a live, in-memory tree that the browser b
 | 5 | **Paint** | Pixels drawn into layers |
 | 6 | **Composite** | GPU assembles layers into final screen image |
 
-Understanding this pipeline is essential for diagnosing performance problems.
+Understanding this pipeline is essential for diagnosing performance problems. Steps 4–6 can be selectively bypassed by using `transform` and `opacity` for animations, which go straight to compositing.
 
 ---
 
@@ -104,7 +104,7 @@ Understanding this pipeline is essential for diagnosing performance problems.
 | **Repaint** | Changing `color`, `background`, `box-shadow` | Cheaper — no geometry recalculation |
 | **Compositing** | `transform`, `opacity` | Cheapest — GPU only, no CPU involvement |
 
-> 💡 **Rule:** Animate with `transform`/`opacity`, never with `width`/`height`/`top`/`left`.
+> 💡 **Rule:** Animate with `transform`/`opacity`, never with `width`/`height`/`top`/`left`. Reading layout properties (e.g., `offsetHeight`) immediately after a DOM write causes **forced synchronous layouts** — a performance anti-pattern sometimes called "layout thrashing."
 
 ---
 
@@ -121,6 +121,7 @@ The Critical Rendering Path is the sequence of steps to show the first pixel on 
 - Eliminate render-blocking resources
 - Serve assets via HTTP/2 or HTTP/3
 - Use `preconnect` for third-party origins
+- Use the **Speculation Rules API** to prerender likely next pages for near-instant navigations
 
 ---
 
@@ -132,9 +133,9 @@ The Critical Rendering Path is the sequence of steps to show the first pixel on 
 |---------|-----------|-------------|
 | **HTTP/1.1** | TCP (multiple connections) | Max ~6 parallel connections per domain |
 | **HTTP/2** | TCP (single multiplexed connection) | Many requests simultaneously, no domain sharding needed |
-| **HTTP/3** | QUIC (UDP-based) | Faster handshakes, resilient to packet loss |
+| **HTTP/3** | QUIC (UDP-based) | Faster handshakes, resilient to packet loss, no head-of-line blocking |
 
-> 💡 HTTP/2 removes the need for aggressive JS/CSS bundling. HTTP/3 is especially beneficial on mobile and lossy networks.
+> 💡 HTTP/2 removes the need for aggressive JS/CSS bundling. HTTP/3 is especially beneficial on mobile and lossy networks. In 2026, HTTP/3 adoption is at ~30% of all web traffic.
 
 ---
 
@@ -148,8 +149,9 @@ Modern browsers:
 - Mark HTTP sites as **"Not Secure"**
 - Block mixed content (HTTP resources on HTTPS pages)
 - Restrict APIs (**Service Workers, Geolocation, Camera, Clipboard**) to HTTPS origins only
+- In 2026, Chrome is moving toward **blocking HTTP entirely** for new navigations as the next step in its HTTPS-first roadmap
 
-> TLS 1.3 is the current standard. TLS 1.0/1.1 are deprecated and blocked by most browsers.
+> TLS 1.3 is the current standard. TLS 1.0/1.1 are deprecated and blocked by all major browsers.
 
 ---
 
@@ -157,9 +159,9 @@ Modern browsers:
 
 **Answer:**
 
-- **Cache-Control headers** tell browsers how long to cache resources (`max-age=31536000` = 1 year)
+- **Cache-Control headers** tell browsers how long to cache resources (`max-age=31536000` = 1 year). Use with **content-hashed filenames** for zero-downtime deploys.
 - **ETags** are content fingerprints — browser sends the ETag back, server replies `304 Not Modified` if unchanged (saves bandwidth)
-- **Service Workers** enable programmatic caching via the Cache API, making offline-first apps possible — far more powerful and flexible than HTTP cache
+- **Service Workers** enable programmatic caching via the Cache API, making offline-first apps possible — far more powerful and flexible than HTTP cache. They also enable push notifications, background sync, and the foundation for PWAs.
 
 ---
 
@@ -171,7 +173,9 @@ Modern browsers:
 
 **Answer:**
 
-HTML (HyperText Markup Language) is the structure language of the web. There is **no HTML6** — the standard is the **HTML Living Standard**, maintained continuously by WHATWG. HTML5 (2014) introduced most modern features and remains the foundation. Browsers implement the living standard, which evolves regularly.
+HTML (HyperText Markup Language) is the structure language of the web. There is **no HTML6** — the standard is the **HTML Living Standard**, maintained continuously by WHATWG. HTML5 (2014) introduced most modern features and remains the foundation. Browsers implement the living standard, which evolves regularly through new elements, attributes, and API integration.
+
+> ⚠️ Be skeptical of any article claiming "HTML6 is here" — this is not an official versioned standard. The Living Standard is the authoritative specification.
 
 ---
 
@@ -371,11 +375,42 @@ input.addEventListener('input', () => {
 
 ---
 
+### Q20. What is the new customizable `<select>` element? `[2026 Trend]`
+
+**Answer:**
+
+For decades, `<select>` was one of the least styleable native HTML elements. The new **customizable select** (reached Baseline Newly Available status in 2025) allows full CSS control while preserving built-in accessibility, keyboard navigation, and form integration:
+
+```css
+/* Opt in to the new customizable select */
+select,
+::picker(select) {
+  appearance: base-select;
+}
+
+/* Now style freely */
+select {
+  border: 2px solid oklch(60% 0.2 250);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+}
+
+::picker(select) {
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+```
+
+This is built on top of the Popover API and CSS Anchor Positioning internally, and offers a progressive-enhancement approach — non-supporting browsers fall back to the native select automatically.
+
+---
+
 ## ♿ Section 4: Accessibility (a11y)
 
 ---
 
-### Q20. What is web accessibility and why is it legally required? `[Intermediate]`
+### Q21. What is web accessibility and why is it legally required? `[Intermediate]`
 
 **Answer:**
 
@@ -387,7 +422,7 @@ Accessibility ensures websites work for people with visual, motor, auditory, or 
 
 ---
 
-### Q21. What is ARIA and when should you use it? `[Intermediate]`
+### Q22. What is ARIA and when should you use it? `[Intermediate]`
 
 **Answer:**
 
@@ -410,7 +445,7 @@ ARIA (Accessible Rich Internet Applications) adds semantic context that HTML alo
 
 ---
 
-### Q22. What are WCAG guidelines? `[Intermediate]`
+### Q23. What are WCAG guidelines? `[Intermediate]`
 
 **Answer:**
 
@@ -424,9 +459,11 @@ ARIA (Accessible Rich Internet Applications) adds semantic context that HTML alo
 
 **POUR Principles:** Perceivable, Operable, Understandable, Robust
 
+> ✨ **2026 note:** WCAG 3.0 is under active development and is expected to replace the pass/fail model with a graduated scoring system. It is not yet finalized but awareness of its direction is a strong interview signal.
+
 ---
 
-### Q23. What are the rules for good `alt` text? `[Beginner]`
+### Q24. What are the rules for good `alt` text? `[Beginner]`
 
 **Answer:**
 
@@ -449,7 +486,7 @@ ARIA (Accessible Rich Internet Applications) adds semantic context that HTML alo
 
 ---
 
-### Q24. What is keyboard navigation and why does it matter? `[Intermediate]`
+### Q25. What is keyboard navigation and why does it matter? `[Intermediate]`
 
 **Answer:**
 
@@ -457,9 +494,11 @@ All interactive elements must be reachable and operable via keyboard alone.
 
 **Requirements:**
 - Logical tab order — use `tabindex="0"`, avoid positive values
-- Visible focus indicator — **never** `outline: none` without replacement
+- Visible focus indicator — **never** `outline: none` without replacement; use `:focus-visible` for accessible, non-intrusive styles
 - Custom widgets must implement ARIA keyboard patterns (arrow keys for menus)
 - Modals must **trap focus** until closed
+
+> In 2026, native `<dialog>` and the Popover API handle focus trapping and `Escape` key behavior automatically — prefer them over custom implementations.
 
 ---
 
@@ -467,7 +506,7 @@ All interactive elements must be reachable and operable via keyboard alone.
 
 ---
 
-### Q25. What is the Intersection Observer API? `[Intermediate]`
+### Q26. What is the Intersection Observer API? `[Intermediate]`
 
 **Answer:**
 
@@ -490,7 +529,7 @@ document.querySelectorAll('img[data-src]').forEach(img => observer.observe(img))
 
 ---
 
-### Q26. What are Web Workers? `[Advanced]`
+### Q27. What are Web Workers? `[Advanced]`
 
 **Answer:**
 
@@ -511,11 +550,11 @@ self.onmessage = (e) => {
 };
 ```
 
-> In 2026: `SharedArrayBuffer` + `Atomics` enable shared memory between workers for high-performance apps.
+> In 2026: `SharedArrayBuffer` + `Atomics` enable shared memory between workers for high-performance apps. **OffscreenCanvas** allows canvas rendering in a worker, offloading WebGL and 2D canvas work from the main thread entirely.
 
 ---
 
-### Q27. What are Service Workers and Progressive Web Apps (PWAs)? `[Advanced]`
+### Q28. What are Service Workers and Progressive Web Apps (PWAs)? `[Advanced]`
 
 **Answer:**
 
@@ -540,11 +579,11 @@ self.addEventListener('fetch', (event) => {
 });
 ```
 
-> In 2026: iOS Safari now supports Push API and install prompts — PWAs are truly cross-platform.
+> In 2026: iOS Safari now supports Push API and install prompts — PWAs are truly cross-platform. The **File System Access API** and **Web Share API** further close the gap with native apps.
 
 ---
 
-### Q28. What is WebAssembly (Wasm)? `[Advanced]`
+### Q29. What is WebAssembly (Wasm)? `[Advanced]`
 
 **Answer:**
 
@@ -556,11 +595,11 @@ A binary instruction format that runs at near-native speed in browsers. Language
 - Scientific computation
 - Blockchain clients
 
-> In 2026: **WASI** (WebAssembly System Interface) extends Wasm outside browsers, and the **Component Model** standardizes module interop.
+> In 2026: **WASI** (WebAssembly System Interface) extends Wasm outside browsers. The **Component Model** standardizes module interop. **WasmGC** (garbage collection for Wasm) is now broadly supported, enabling managed languages like Kotlin and Dart to compile to Wasm efficiently.
 
 ---
 
-### Q29. What is localStorage vs sessionStorage vs IndexedDB? `[Intermediate]`
+### Q30. What is localStorage vs sessionStorage vs IndexedDB? `[Intermediate]`
 
 **Answer:**
 
@@ -570,7 +609,29 @@ A binary instruction format that runs at near-native speed in browsers. Language
 | `sessionStorage` | Until tab closes | ~5MB | ❌ Sync | Temporary session data |
 | `IndexedDB` | Until cleared | GBs | ✅ Async | Large data, offline-first apps |
 
-> ⚠️ **Never store passwords, tokens, or sensitive data in any of these.** All are accessible to JavaScript — an XSS vulnerability exposes everything.
+> ⚠️ **Never store passwords, tokens, or sensitive data in any of these.** All are accessible to JavaScript — an XSS vulnerability exposes everything. Use `HttpOnly` cookies for auth tokens.
+
+---
+
+### Q31. What is the File System Access API? `[2026 Trend]`
+
+**Answer:**
+
+The File System Access API allows web apps to read from and write to the user's local file system with explicit permission — enabling browser-native code editors, image editors, and document tools.
+
+```javascript
+// Open a file picker and read a file
+const [fileHandle] = await window.showOpenFilePicker();
+const file = await fileHandle.getFile();
+const contents = await file.text();
+
+// Save back to disk
+const writable = await fileHandle.createWritable();
+await writable.write(updatedContents);
+await writable.close();
+```
+
+Topped the positive sentiment chart in the State of HTML 2025 survey. Available in Chrome and Edge; Firefox support is in development.
 
 ---
 
@@ -578,7 +639,7 @@ A binary instruction format that runs at near-native speed in browsers. Language
 
 ---
 
-### Q30. What are Core Web Vitals? `[Intermediate]`
+### Q32. What are Core Web Vitals? `[Intermediate]`
 
 **Answer:**
 
@@ -587,12 +648,14 @@ Google's real-user metrics that directly affect search rankings:
 | Metric | Measures | Good Score |
 |--------|----------|------------|
 | **LCP** (Largest Contentful Paint) | Loading performance | < 2.5s |
-| **INP** (Interaction to Next Paint) | Responsiveness *(replaced FID in 2024)* | < 200ms |
+| **INP** (Interaction to Next Paint) | Responsiveness *(replaced FID in March 2024)* | < 200ms |
 | **CLS** (Cumulative Layout Shift) | Visual stability | < 0.1 |
+
+> ✨ **2026 note:** INP is now the official responsiveness metric. It measures the full event duration (from input to next paint) rather than just input latency. Optimizing INP usually means reducing long tasks on the main thread, using `scheduler.yield()`, and breaking up heavy JavaScript.
 
 ---
 
-### Q31. How do you implement lazy loading? `[Beginner]`
+### Q33. How do you implement lazy loading? `[Beginner]`
 
 **Answer:**
 
@@ -602,17 +665,17 @@ Google's real-user metrics that directly affect search rankings:
 <iframe src="map.html" loading="lazy"></iframe>
 ```
 
-> 💡 Always add `width` and `height` attributes to prevent **CLS** (layout shift before the image loads).
+> 💡 Always add `width` and `height` attributes to prevent **CLS** (layout shift before the image loads). Use `fetchpriority="high"` on the LCP image to signal it should load as soon as possible.
 
 ---
 
-### Q32. What image formats should you use in 2026? `[Intermediate]`
+### Q34. What image formats should you use in 2026? `[Intermediate]`
 
 **Answer:**
 
 | Format | Size vs JPEG | Support | Use For |
 |--------|-------------|---------|---------|
-| **AVIF** | ~50% smaller | All modern browsers (2024+) | Photos, illustrations |
+| **AVIF** | ~50% smaller | All modern browsers | Photos, illustrations |
 | **WebP** | ~30% smaller | Universal | Photos, illustrations (fallback) |
 | **SVG** | Scalable | Universal | Icons, logos, diagrams |
 | **JPEG** | Baseline | Universal | Fallback only |
@@ -621,19 +684,20 @@ Google's real-user metrics that directly affect search rankings:
 <picture>
   <source srcset="image.avif" type="image/avif">
   <source srcset="image.webp" type="image/webp">
-  <img src="image.jpg" alt="Description" width="800" height="400" loading="lazy">
+  <img src="image.jpg" alt="Description" width="800" height="400"
+       loading="lazy" fetchpriority="auto">
 </picture>
 ```
 
 ---
 
-### Q33. What are resource hints? `[Advanced]`
+### Q35. What are resource hints? `[Advanced]`
 
 **Answer:**
 
 ```html
-<!-- Fetch this critical resource immediately -->
-<link rel="preload" href="hero.jpg" as="image">
+<!-- Fetch this critical resource immediately (LCP image, key font) -->
+<link rel="preload" href="hero.jpg" as="image" fetchpriority="high">
 <link rel="preload" href="font.woff2" as="font" crossorigin>
 
 <!-- Fetch for likely next navigation (idle time) -->
@@ -646,7 +710,33 @@ Google's real-user metrics that directly affect search rankings:
 <link rel="dns-prefetch" href="https://analytics.example.com">
 ```
 
-> ⚠️ Use `preload` sparingly — over-fetching wastes bandwidth and can hurt performance.
+> ⚠️ Use `preload` sparingly — over-fetching wastes bandwidth and can hurt LCP by competing with the actual critical resources.
+
+---
+
+### Q36. What is the Speculation Rules API? `[2026 Trend]`
+
+**Answer:**
+
+The Speculation Rules API lets you tell Chromium-based browsers which pages to prefetch or fully prerender in the background. Prerendered pages load nearly instantly when the user navigates to them.
+
+```html
+<script type="speculationrules">
+{
+  "prerender": [{
+    "where": { "href_matches": "/*" },
+    "eagerness": "moderate"
+  }]
+}
+</script>
+```
+
+**Eagerness levels:**
+- `immediate` — speculate as soon as possible on page load
+- `moderate` — speculate on hover (desktop) or proximity scroll (mobile)
+- `conservative` — speculate on mousedown/touchstart (minimal waste)
+
+> Currently supported in Chromium-based browsers (Chrome, Edge, Opera). Safari and Firefox are working on support. Non-supporting browsers silently ignore the script tag, making it safe to deploy as progressive enhancement. Always exclude state-changing URLs (e.g., `/logout`) from speculation rules.
 
 ---
 
@@ -654,7 +744,7 @@ Google's real-user metrics that directly affect search rankings:
 
 ---
 
-### Q34. What is XSS and how do you prevent it? `[Advanced]`
+### Q37. What is XSS and how do you prevent it? `[Advanced]`
 
 **Answer:**
 
@@ -679,11 +769,11 @@ import DOMPurify from 'dompurify';
 element.innerHTML = DOMPurify.sanitize(userInput);
 ```
 
-Also: Use a strict **Content Security Policy**, set `HttpOnly` on sensitive cookies.
+Also: Use a strict **Content Security Policy**, set `HttpOnly` on sensitive cookies. The new browser-native **Sanitizer API** is emerging as a built-in alternative to DOMPurify.
 
 ---
 
-### Q35. What is Content Security Policy (CSP)? `[Advanced]`
+### Q38. What is Content Security Policy (CSP)? `[Advanced]`
 
 **Answer:**
 
@@ -704,7 +794,7 @@ Content-Security-Policy: script-src 'nonce-rAnd0m123'
 
 ---
 
-### Q36. What is CSRF and how do you prevent it? `[Advanced]`
+### Q39. What is CSRF and how do you prevent it? `[Advanced]`
 
 **Answer:**
 
@@ -717,7 +807,7 @@ Content-Security-Policy: script-src 'nonce-rAnd0m123'
 
 ---
 
-### Q37. What is CORS? `[Advanced]`
+### Q40. What is CORS? `[Advanced]`
 
 **Answer:**
 
@@ -730,7 +820,25 @@ Browser blocks unless api.other.com responds with:
 Access-Control-Allow-Origin: https://example.com
 ```
 
-> ⚠️ CORS is **enforced by browsers only** — it doesn't protect server-to-server calls. Browsers send a preflight `OPTIONS` request for non-simple requests.
+> ⚠️ CORS is **enforced by browsers only** — it doesn't protect server-to-server calls. Browsers send a preflight `OPTIONS` request for non-simple requests (e.g., requests with custom headers or a JSON body). Responding with `Access-Control-Allow-Origin: *` disables CORS protection for that endpoint.
+
+---
+
+### Q41. What is Subresource Integrity (SRI)? `[Advanced]`
+
+**Answer:**
+
+SRI lets you lock a `<script>` or `<link>` to a specific content hash. If a CDN serves a tampered file, the browser rejects it.
+
+```html
+<script
+  src="https://cdn.example.com/lib.min.js"
+  integrity="sha384-abc123..."
+  crossorigin="anonymous">
+</script>
+```
+
+> Essential when loading third-party scripts from CDNs. Pairs with a strict CSP for defense-in-depth.
 
 ---
 
@@ -738,11 +846,11 @@ Access-Control-Allow-Origin: https://example.com
 
 ---
 
-### Q38. What is the Popover API? `[2026 Trend]`
+### Q42. What is the Popover API? `[2026 Trend]`
 
 **Answer:**
 
-Native HTML for tooltips, dropdowns, and floating overlays — no JS positioning library needed.
+The Popover API reached **Baseline Newly Available** status in 2025 and is stable in all major browsers. It provides native HTML for tooltips, dropdowns, and floating overlays — no JS positioning library needed.
 
 ```html
 <button popovertarget="menu">Open Menu</button>
@@ -756,11 +864,11 @@ Native HTML for tooltips, dropdowns, and floating overlays — no JS positioning
 </div>
 ```
 
-Browser handles automatically: stacking context, focus management, light-dismiss (click outside), keyboard (`Escape` to close), and accessibility.
+Browser handles automatically: top-layer rendering (no z-index battles), focus management, light-dismiss (click outside), keyboard (`Escape` to close), and accessibility. Combine with CSS Anchor Positioning to place the popover relative to the trigger button.
 
 ---
 
-### Q39. What is the native `<dialog>` element? `[2026 Trend]`
+### Q43. What is the native `<dialog>` element? `[2026 Trend]`
 
 **Answer:**
 
@@ -783,15 +891,15 @@ dialog::backdrop {
 }
 ```
 
-> In 2026: universally supported — the correct way to build modals. No ARIA hacks needed.
+> Universally supported — the correct way to build modals in 2026. No ARIA hacks needed. Use `.showModal()` for accessible modal behavior and `.show()` for non-modal dialogs.
 
 ---
 
-### Q40. What is the View Transitions API? `[2026 Trend]`
+### Q44. What is the View Transitions API? `[2026 Trend]`
 
 **Answer:**
 
-Enables smooth animated transitions between DOM states or page navigations — no animation library needed.
+Enables smooth animated transitions between DOM states or full-page navigations — no animation library needed. Same-document View Transitions are **Baseline** (broadly supported). Cross-document transitions use `@view-transition { navigation: auto; }`.
 
 ```javascript
 // Animate between two states
@@ -808,11 +916,14 @@ document.startViewTransition(() => {
 ::view-transition-new(root) {
   animation: 300ms ease-in fade-in;
 }
+
+/* Named element transition */
+.hero { view-transition-name: hero; } /* Must be unique per page */
 ```
 
 ---
 
-### Q41. What is structured data (JSON-LD)? `[Intermediate]`
+### Q45. What is structured data (JSON-LD)? `[Intermediate]`
 
 **Answer:**
 
@@ -839,18 +950,20 @@ Embeds machine-readable schema.org data for search engine Rich Results (star rat
 
 ---
 
-### Q42. What emerging browser features are most important in 2026? `[2026 Trend]`
+### Q46. What emerging browser features are most important in 2026? `[2026 Trend]`
 
 **Answer:**
 
-| Feature | What it does |
-|---------|-------------|
-| **CSS Anchor Positioning** | Position popovers/tooltips relative to any element — natively |
-| **Speculation Rules API** | Prerender next pages for instant navigation |
-| **Scroll-driven Animations** | CSS animations tied to scroll position — no JS |
-| **Declarative Shadow DOM** | Server-rendered Web Components |
-| **WebGPU** | Next-gen GPU compute and graphics in the browser |
-| **CSS `@layer`** | Cascade layers for managing specificity in large codebases |
+| Feature | Status | What it does |
+|---------|--------|-------------|
+| **CSS Anchor Positioning** | Baseline (Chromium + Safari) | Position popovers/tooltips relative to any element natively |
+| **Speculation Rules API** | Chrome/Edge (Chromium) | Prerender next pages for near-instant navigation |
+| **Scroll-driven Animations** | Baseline | CSS animations tied to scroll position — no JS |
+| **Customizable `<select>`** | Baseline Newly Available | Fully styleable native select element |
+| **Declarative Shadow DOM** | Baseline | Server-rendered Web Components |
+| **WebGPU** | Chrome, Edge, Firefox | Next-gen GPU compute and graphics in the browser |
+| **`scheduler.yield()`** | Chrome/Edge | Yield to main thread for better INP without `setTimeout` hacks |
+| **CSS `if()` function** | Chrome/Edge | Inline conditional CSS values based on media/style/support queries |
 
 ---
 
@@ -858,7 +971,7 @@ Embeds machine-readable schema.org data for search engine Rich Results (star rat
 
 ---
 
-### Q43. What are the three ways to apply CSS? `[Beginner]`
+### Q47. What are the three ways to apply CSS? `[Beginner]`
 
 **Answer:**
 
@@ -877,7 +990,7 @@ Embeds machine-readable schema.org data for search engine Rich Results (star rat
 
 ---
 
-### Q44. What is the CSS Box Model? `[Beginner]`
+### Q48. What is the CSS Box Model? `[Beginner]`
 
 **Answer:**
 
@@ -898,22 +1011,22 @@ box-sizing: border-box;
 
 ---
 
-### Q45. What are CSS Custom Properties (variables)? `[Intermediate]`
+### Q49. What are CSS Custom Properties (variables)? `[Intermediate]`
 
 **Answer:**
 
-Native CSS variables that cascade, can be overridden per component, and are accessible in JavaScript.
+Native CSS variables that cascade, can be overridden per component, and are accessible in JavaScript. In 2026, they are the foundation of design token systems and dynamic theming.
 
 ```css
 :root {
-  --color-primary: #2E86AB;
+  --color-primary: oklch(55% 0.2 250);
   --spacing-md: 1rem;
 }
 
 /* Dark mode override */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-primary: #7EC8E3;
+    --color-primary: oklch(75% 0.15 250);
   }
 }
 
@@ -925,7 +1038,7 @@ Native CSS variables that cascade, can be overridden per component, and are acce
 
 ---
 
-### Q46. What is the difference between Flexbox and Grid? `[Intermediate]`
+### Q50. What is the difference between Flexbox and Grid? `[Intermediate]`
 
 **Answer:**
 
@@ -938,19 +1051,20 @@ Native CSS variables that cascade, can be overridden per component, and are acce
 
 ---
 
-### Q47. What are CSS Container Queries and why are they important? `[2026 Trend]`
+### Q51. What are CSS Container Queries and why are they important? `[2026 Trend]`
 
 **Answer:**
 
-Container Queries let components style themselves based on their **container's size**, not the viewport.
+Container Queries let components style themselves based on their **container's size**, not the viewport — enabling truly reusable responsive components.
 
 ```css
 /* Component adapts to its container, not screen size */
 .card-container {
   container-type: inline-size;
+  container-name: card;
 }
 
-@container (min-width: 600px) {
+@container card (min-width: 600px) {
   .card {
     display: grid;
     grid-template-columns: 1fr 2fr;
@@ -958,7 +1072,7 @@ Container Queries let components style themselves based on their **container's s
 }
 ```
 
-> This was impossible with media queries alone. Container Queries are now the standard for truly reusable responsive components.
+> In 2026, **container style queries** extend this further — components can adapt based on CSS custom property values on their container, enabling powerful context-aware theming.
 
 ---
 
@@ -966,7 +1080,7 @@ Container Queries let components style themselves based on their **container's s
 
 ---
 
-### Q48. What is the difference between `async` and `defer`? `[Intermediate]`
+### Q52. What is the difference between `async` and `defer`? `[Intermediate]`
 
 **Answer:**
 
@@ -982,11 +1096,11 @@ Both load scripts without blocking HTML parsing.
 <script src="app.js" defer></script>           <!-- depends on DOM -->
 ```
 
-> In 2026: most scripts should use `defer`. Avoid bare `<script>` in `<head>` without `async`/`defer`.
+> In 2026: most scripts should use `defer`. Avoid bare `<script>` in `<head>` without `async`/`defer` as it blocks HTML parsing.
 
 ---
 
-### Q49. What is event delegation? `[Intermediate]`
+### Q53. What is event delegation? `[Intermediate]`
 
 **Answer:**
 
@@ -1009,7 +1123,7 @@ document.querySelector('.list').addEventListener('click', (e) => {
 
 ---
 
-### Q50. What is the difference between `innerHTML`, `textContent`, and `innerText`? `[Intermediate]`
+### Q54. What is the difference between `innerHTML`, `textContent`, and `innerText`? `[Intermediate]`
 
 **Answer:**
 
@@ -1019,11 +1133,11 @@ document.querySelector('.list').addEventListener('click', (e) => {
 | `textContent` | ❌ No | ✅ Yes | No |
 | `innerText` | ❌ No | ✅ Yes | ✅ Yes (slow) |
 
-> 💡 **Use `textContent` for text-only operations.** Use `DOMPurify.sanitize()` + `innerHTML` when HTML from user input is required.
+> 💡 **Use `textContent` for text-only operations.** Use `DOMPurify.sanitize()` + `innerHTML` when HTML from user input is required. The emerging **Sanitizer API** will offer a native browser alternative to DOMPurify.
 
 ---
 
-### Q51. What is the Fetch API? `[Intermediate]`
+### Q55. What is the Fetch API? `[Intermediate]`
 
 **Answer:**
 
@@ -1045,7 +1159,7 @@ async function getData(url) {
 
 ---
 
-### Q52. What are Web Components? `[Advanced]`
+### Q56. What are Web Components? `[Advanced]`
 
 **Answer:**
 
@@ -1075,7 +1189,30 @@ customElements.define('my-card', MyCard);
 </my-card>
 ```
 
-> In 2026: Web Components power Adobe Spectrum, Google Material Web, and Salesforce Lightning design systems.
+> In 2026: **Declarative Shadow DOM** (`<template shadowrootmode="open">`) allows Web Components to be server-rendered without JavaScript, finally giving them a proper SSR story. Web Components power Adobe Spectrum, Google Material Web, and Salesforce Lightning design systems.
+
+---
+
+### Q57. What is `scheduler.yield()` and why does it matter for INP? `[2026 Trend]`
+
+**Answer:**
+
+`scheduler.yield()` is a new browser API that allows JavaScript to yield control back to the browser mid-task, giving it a chance to process user interactions before resuming. This directly improves **INP** (Interaction to Next Paint) by breaking long tasks into smaller chunks without the awkward `setTimeout(fn, 0)` hack.
+
+```javascript
+async function processLargeData(items) {
+  for (let i = 0; i < items.length; i++) {
+    processItem(items[i]);
+
+    // Every 50 items, yield to the browser for better responsiveness
+    if (i % 50 === 0) {
+      await scheduler.yield();
+    }
+  }
+}
+```
+
+Available in Chrome/Edge. A `scheduler.postTask()` API also exists for prioritized task scheduling.
 
 ---
 
@@ -1083,7 +1220,7 @@ customElements.define('my-card', MyCard);
 
 ---
 
-### Q53. What is progressive enhancement? `[Intermediate]`
+### Q58. What is progressive enhancement? `[Intermediate]`
 
 **Answer:**
 
@@ -1096,14 +1233,14 @@ HTML baseline (works everywhere)
   ↓
 + JavaScript (interactive enhancement)
   ↓
-+ Modern APIs (cutting-edge enhancement)
++ Modern APIs (cutting-edge enhancement with @supports / feature detection)
 ```
 
 > More robust than graceful degradation — the page works even if CSS or JS fails to load.
 
 ---
 
-### Q54. How do you structure HTML for SEO? `[Intermediate]`
+### Q59. How do you structure HTML for SEO? `[Intermediate]`
 
 **Answer:**
 
@@ -1114,11 +1251,11 @@ HTML baseline (works everywhere)
 - Image `alt` text
 - Canonical URLs (`<link rel="canonical">`)
 - Structured data (JSON-LD schema.org markup)
-- Fast load times (Core Web Vitals)
+- Fast load times (Core Web Vitals — especially LCP and INP)
 
 ---
 
-### Q55. What are the most common HTML mistakes to avoid? `[Beginner]`
+### Q60. What are the most common HTML mistakes to avoid? `[Beginner]`
 
 **Answer:**
 
@@ -1133,11 +1270,12 @@ HTML baseline (works everywhere)
 | No `width`/`height` on images | Add dimensions to prevent CLS |
 | Multiple `<h1>` elements | One `<h1>` per page |
 | Links that say "click here" | Use descriptive link text |
-| `outline: none` on focus | Keep visible focus styles |
+| `outline: none` on focus | Keep visible focus styles (use `:focus-visible`) |
+| `target="_blank"` without `rel="noopener"` | Browsers now apply this automatically (Chrome 2021+) but add it for older targets |
 
 ---
 
-### Q56. What should every HTML `<head>` contain? `[Beginner]`
+### Q61. What should every HTML `<head>` contain? `[Beginner]`
 
 **Answer:**
 
@@ -1152,14 +1290,14 @@ HTML baseline (works everywhere)
   <meta name="description" content="Concise description under 160 chars.">
   <link rel="canonical" href="https://example.com/page">
 
-  <!-- Social sharing -->
+  <!-- Social sharing (Open Graph) -->
   <meta property="og:title" content="Page Title">
   <meta property="og:description" content="Description">
   <meta property="og:image" content="https://example.com/preview.jpg">
 
   <!-- Performance -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preload" href="hero.jpg" as="image">
+  <link rel="preload" href="hero.jpg" as="image" fetchpriority="high">
 
   <!-- Styles -->
   <link rel="stylesheet" href="styles.css">
@@ -1187,6 +1325,7 @@ HTML baseline (works everywhere)
 | `<summary>` | Toggle for details | Visible label for a `<details>` widget |
 | `<mark>` | Highlighted text | Search result highlights, key terms |
 | `<address>` | Contact info | Author or organization contact details |
+| `<search>` | Search landmark ✨ | Wraps search forms — new semantic element; replaces `role="search"` |
 
 ---
 
@@ -1196,11 +1335,13 @@ HTML baseline (works everywhere)
 - [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/HTML) — definitive HTML/CSS/JS reference
 - [HTML Living Standard](https://html.spec.whatwg.org/) — the actual specification
 - [Can I Use](https://caniuse.com/) — browser support tables for every feature
+- [web.dev Baseline](https://web.dev/baseline) — cross-browser feature readiness signal
 
 ### Performance & Best Practices
 - [web.dev](https://web.dev/) by Google — performance, accessibility, modern web
 - [Chrome DevTools](https://developer.chrome.com/docs/devtools/) — learn Performance, Accessibility, and Network panels
 - [Lighthouse](https://developer.chrome.com/docs/lighthouse/) — automated audits built into DevTools
+- [Chrome for Developers Blog](https://developer.chrome.com/blog) — new web UI features including I/O 2025 recap
 
 ### Accessibility
 - [WebAIM](https://webaim.org/) — accessibility testing tools and learning
@@ -1210,6 +1351,14 @@ HTML baseline (works everywhere)
 ### Security
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/) — top web security risks
 - [Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) — MDN CSP reference
+
+### What to Watch (2026 Horizon)
+- **Interop 2026** — annual cross-browser initiative to land highly-requested features; results announced early 2026
+- **WCAG 3.0** — graduated scoring model in development; not yet finalized
+- **Sanitizer API** — native browser alternative to DOMPurify for safe HTML insertion
+- **Interest Invoker API** — CSS-native hover-delay for tooltips (complements Anchor Positioning + Popover)
+- **`<model>` element** — embeds 3D models (AR/VR) natively in HTML
+- **Customizable `<select>` widespread adoption** — the first native form control in years to be fully styleable
 
 ---
 
